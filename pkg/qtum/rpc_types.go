@@ -803,10 +803,10 @@ type (
 
 	}
 	RawTransactionVin struct {
-		ID     string  `json:"txid"`
-		VoutN  int64   `json:"vout"`
-		Amount float64 `json:"value"`
-		Address string `json:"address"`
+		ID      string  `json:"txid"`
+		VoutN   int64   `json:"vout"`
+		Amount  float64 `json:"value"`
+		Address string  `json:"address"`
 
 		// Additional fields:
 		// - "scriptSig"
@@ -1492,24 +1492,24 @@ type (
 		    }
 	*/
 	ListUnspentRequest struct {
-		MinConf      int
-		MaxConf      int
-		Addresses    []string
-		QueryOptions ListUnspentQueryOptions
+		MinConf      int                     `json:"minconf"`
+		MaxConf      int                     `json:"maxconf"`
+		Addresses    []string                `json:"addresses"`
+		QueryOptions ListUnspentQueryOptions `json:"query_options"`
 	}
 	ListUnspentQueryOptions struct {
 		// Applies to each UTXO
-		MinAmount decimal.Decimal
+		MinAmount decimal.Decimal `json:"minimumAmount"`
 		// Applies to each UTXO
-		MaxAmount      decimal.Decimal
-		MaxNumToReturn int
+		MaxAmount      decimal.Decimal `json:"maximumAmount"`
+		MaxNumToReturn int             `json:"maximumCount"`
 		// Returns only those UTXOs, which total amount
 		// is greater than or equal `MinSumAmount`
 		//
 		// NOTE: it doesn't consider amount of all
 		// UTXOs, that is not all UTXOs may be
 		// returned, but a limited number of UTXOs
-		MinSumAmount decimal.Decimal
+		MinSumAmount decimal.Decimal `json:"minimumSumAmount"`
 	}
 
 	/*

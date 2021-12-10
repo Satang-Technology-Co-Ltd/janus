@@ -134,6 +134,7 @@ func DefaultProxies(qtumRPCClient *qtum.Qtum, agent *notifier.Agent, cacher *Blo
 		&ProxyETHTxCount{Qtum: qtumRPCClient},
 		&ProxyETHSignTransaction{Qtum: qtumRPCClient},
 		&ProxyETHSendRawTransaction{Qtum: qtumRPCClient},
+		&ProxyListUnspent{Qtum: qtumRPCClient},
 
 		&ETHSubscribe{Qtum: qtumRPCClient, Agent: agent},
 		&ETHUnsubscribe{Qtum: qtumRPCClient, Agent: agent},
