@@ -76,6 +76,7 @@ func (p *ProxyETHGetTransactionReceipt) request(req *qtum.GetTransactionReceiptR
 		GasUsed:           hexutil.EncodeUint64(qtumReceipt.GasUsed),
 		From:              utils.AddHexPrefixIfNotEmpty(qtumReceipt.From),
 		To:                utils.AddHexPrefixIfNotEmpty(qtumReceipt.To),
+		EffectiveGasPrice: "0x00",
 
 		// TODO: researching
 		// ! Temporary accept this value to be always zero, as it is at eth logs
