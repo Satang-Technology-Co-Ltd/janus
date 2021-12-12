@@ -23,15 +23,11 @@ func ParseCallSenderASM(parts []string) (*ContractInvokeInfo, error) {
 
 	// "1 7926223070547d2d15b2ef5e7383e541c338ffe9 69463043021f3ba540f52e0bae0c608c3d7135424fb683c77ee03217fcfe0af175c586aadc02200222e460a42268f02f130bc46f3ef62f228dd8051756dc13693332423515fcd401210299d391f528b9edd07284c7e23df8415232a8ce41531cf460a390ce32b4efd112 OP_SENDER 4 40000000 40 60fe47b10000000000000000000000000000000000000000000000000000000000000319 9e11fba86ee5d0ba4996b0d1973de6b694f4fc95 OP_CALL"
 
-	if len(parts) != 10 {
-		fmt.Println("Hit the len of parts does not equal 10")
-		return nil, errors.New(fmt.Sprintf("invalid create_sender script for parts 10: %v", parts))
+	if len(parts) < 6 {
+		fmt.Println("Hit the len of parts < 6")
+		return nil, errors.New(fmt.Sprintf("invalid create_sender script for parts 6: %v", parts))
 	}
 
-	// 1    // address type of the pubkeyhash (public key hash)
-	// Address               // sender's pubkeyhash address
-	// {signature, pubkey}   //serialized scriptSig
-	// OP_SENDER
 	// 4                     // EVM version
 	// 100000                //gas limit
 	// 10                    //gas price
@@ -39,22 +35,22 @@ func ParseCallSenderASM(parts []string) (*ContractInvokeInfo, error) {
 	// Contract Address      // contract address
 	// OP_CALL
 
-	gasLimit, err := stringBase10ToHex(parts[5])
+	gasLimit, err := stringBase10ToHex(parts[1])
 	if err != nil {
 		return nil, err
 	}
 
-	gasPrice, err := stringBase10ToHex(parts[6])
+	gasPrice, err := stringBase10ToHex(parts[2])
 	if err != nil {
 		return nil, err
 	}
 
 	return &ContractInvokeInfo{
-		From:     parts[1],
+		From:     "0x0000000000000000000000000000000000000000", // TODO: from?
 		GasPrice: gasPrice,
 		GasLimit: gasLimit,
-		CallData: parts[7],
-		To:       parts[8],
+		CallData: parts[3],
+		To:       parts[4],
 	}, nil
 
 }
