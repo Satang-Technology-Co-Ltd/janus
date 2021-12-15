@@ -367,6 +367,7 @@ func (r *GetTransactionByBlockNumberAndIndex) UnmarshalJSON(data []byte) error {
 }
 
 // ======= qtum_getRawTransaction ============= //
+// NOTE: experimental feature
 
 type (
 	GetRawTransactionRequest  string
