@@ -131,6 +131,25 @@ func (c *Client) RequestWithContext(ctx context.Context, method string, params i
 	return nil
 }
 
+func (c *Client) RequestToFVM(ctx context.Context, method string, params interface{}) (interface{}, error) {
+	req, err := c.NewRPCRequest(method, params)
+	if err != nil {
+		return "", errors.WithMessage(err, "couldn't make new rpc request")
+	}
+	resp, err := c.Do(ctx, req)
+	if err != nil {
+		c.GetDebugLogger().Log("method", method, "params", params, "error", err)
+		return nil, errors.Wrap(err, "couldn't unmarshal response result field")
+	}
+
+	var result map[string]interface{}
+	err = json.Unmarshal(resp.RawResult, &result)
+	if err != nil {
+		return resp.RawResult, nil
+	}
+	return result, nil
+}
+
 func (c *Client) Do(ctx context.Context, req *JSONRPCRequest) (*SuccessJSONRPCResult, error) {
 	reqBody, err := json.MarshalIndent(req, "", "  ")
 	if err != nil {
