@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"github.com/qtumproject/janus/pkg/eth"
 	"github.com/qtumproject/janus/pkg/utils"
 )
 
@@ -103,6 +104,21 @@ func (m *Method) GetRawTransaction(txID string, hexEncoded bool) (*GetRawTransac
 	}
 	if m.IsDebugEnabled() {
 		m.GetDebugLogger().Log("function", "GetRawTransaction", "Transaction ID", txID, "Hex Encoded", hexEncoded, "result", marshalToString(resp))
+	}
+	return resp, nil
+}
+
+func (m *Method) SendToFVM(req *eth.JSONRPCRequest) (interface{}, error) {
+	var resp interface{}
+	resp, err := m.RequestToFVM(nil, req.Method, req.Params)
+	if err != nil {
+		if m.IsDebugEnabled() {
+			m.GetDebugLogger().Log("function", "sendToFVM", "error", err)
+		}
+		return "", err
+	}
+	if m.IsDebugEnabled() {
+		m.GetDebugLogger().Log("function", "sendToFVM", "Method", req.Method, "Params", req.Params)
 	}
 	return resp, nil
 }

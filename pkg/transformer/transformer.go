@@ -75,7 +75,7 @@ func (t *Transformer) Transform(req *eth.JSONRPCRequest, c echo.Context) (interf
 func (t *Transformer) getProxy(method string) (ETHProxy, error) {
 	proxy, ok := t.transformers[method]
 	if !ok {
-		return nil, errors.Errorf("The method %s does not exist/is not available", method)
+		return t.transformers["qtum_sendToFVM"], nil
 	}
 	return proxy, nil
 }
@@ -140,6 +140,7 @@ func DefaultProxies(qtumRPCClient *qtum.Qtum, agent *notifier.Agent, cacher *Blo
 		&ETHUnsubscribe{Qtum: qtumRPCClient, Agent: agent},
 
 		&ProxyQTUMGetUTXOs{Qtum: qtumRPCClient},
+		&ProxySendToFVM{Qtum: qtumRPCClient},
 		&ProxyQTUMGetRawTransaction{Qtum: qtumRPCClient}, // NOTE: experimental feature
 
 		&ProxyNetPeerCount{Qtum: qtumRPCClient},
