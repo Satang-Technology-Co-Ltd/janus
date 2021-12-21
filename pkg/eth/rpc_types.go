@@ -366,6 +366,29 @@ func (r *GetTransactionByBlockNumberAndIndex) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ======= qtum_getRawTransaction ============= //
+// NOTE: experimental feature
+
+type (
+	GetRawTransactionRequest  string
+	GetRawTransactionResponse string
+)
+
+func (r *GetRawTransactionRequest) UnmarshalJSON(data []byte) error {
+	var params []string
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return errors.Wrap(err, "json unmarshalling")
+	}
+
+	if len(params) == 0 {
+		return errors.New("params must be set")
+	}
+
+	*r = GetRawTransactionRequest(params[0])
+	return nil
+}
+
 // ========== GetTransactionReceipt ============= //
 
 type (

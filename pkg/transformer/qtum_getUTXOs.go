@@ -1,6 +1,9 @@
 package transformer
 
 import (
+	"math/rand"
+	"time"
+
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 	"github.com/qtumproject/janus/pkg/eth"
@@ -53,7 +56,12 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 
 	var utxos []eth.QtumUTXO
 	var minUTXOsSum decimal.Decimal
+	rand.Seed(int64(time.Now().Nanosecond()))
+	rand.Shuffle(len(*resp), func(i, j int) { (*resp)[i], (*resp)[j] = (*resp)[j], (*resp)[i] })
 	for _, utxo := range *resp {
+		if utxo.Satoshis.LessThan(decimal.New(10, 8)) {
+			continue
+		}
 		minUTXOsSum = minUTXOsSum.Add(utxo.Satoshis)
 		utxos = append(utxos, toEthResponseType(utxo))
 		if minUTXOsSum.GreaterThanOrEqual(minimumSum) {
@@ -61,7 +69,7 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 		}
 	}
 
-	return nil, errors.Errorf("required minimum amount is greater than total amount of UTXOs")
+	return (*eth.GetUTXOsResponse)(&utxos), nil
 }
 
 func toEthResponseType(utxo qtum.UTXO) eth.QtumUTXO {

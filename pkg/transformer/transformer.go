@@ -141,6 +141,7 @@ func DefaultProxies(qtumRPCClient *qtum.Qtum, agent *notifier.Agent, cacher *Blo
 
 		&ProxyQTUMGetUTXOs{Qtum: qtumRPCClient},
 		&ProxySendToFVM{Qtum: qtumRPCClient},
+		&ProxyQTUMGetRawTransaction{Qtum: qtumRPCClient}, // NOTE: experimental feature
 
 		&ProxyNetPeerCount{Qtum: qtumRPCClient},
 	}
