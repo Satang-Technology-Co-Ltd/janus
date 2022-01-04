@@ -1,6 +1,7 @@
 package transformer
 
 import (
+	"math/big"
 	"math/rand"
 	"time"
 
@@ -10,16 +11,24 @@ import (
 	"github.com/qtumproject/janus/pkg/qtum"
 	"github.com/qtumproject/janus/pkg/utils"
 	"github.com/shopspring/decimal"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type ProxyQTUMGetUTXOs struct {
 	*qtum.Qtum
+	confirmedUtxos *lru.Cache
 }
 
 var _ ETHProxy = (*ProxyQTUMGetUTXOs)(nil)
 
 func (p *ProxyQTUMGetUTXOs) Method() string {
 	return "qtum_getUTXOs"
+}
+
+func (p *ProxyQTUMGetUTXOs) WithCache() *ProxyQTUMGetUTXOs {
+	p.confirmedUtxos, _ = lru.New(1000)
+	return p
 }
 
 func (p *ProxyQTUMGetUTXOs) Request(req *eth.JSONRPCRequest, c echo.Context) (interface{}, error) {
@@ -46,6 +55,11 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 		Addresses: []string{address},
 	}
 
+	blockCount, err := p.Qtum.GetBlockCount()
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := p.Qtum.GetAddressUTXOs(&req)
 	if err != nil {
 		return nil, err
@@ -59,8 +73,36 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 	rand.Seed(int64(time.Now().Nanosecond()))
 	rand.Shuffle(len(*resp), func(i, j int) { (*resp)[i], (*resp)[j] = (*resp)[j], (*resp)[i] })
 	for _, utxo := range *resp {
-		if utxo.Satoshis.LessThan(decimal.New(10, 8)) {
-			continue
+		confirmations := utils.GetConfirmations(blockCount.Int, utxo.Height)
+		if confirmations.Cmp(big.NewInt(100)) < 0 {
+
+			var isCoinbase *bool
+
+			// Search in cache
+			if p.confirmedUtxos != nil {
+				if val, ok := p.confirmedUtxos.Get(utxo.TXID); ok {
+					if valBool, assertOk := val.(bool); assertOk {
+						isCoinbase = &valBool
+					}
+				}
+			}
+
+			// Query from chain
+			if isCoinbase == nil {
+				tx, err := p.Qtum.GetRawTransaction(utxo.TXID, false)
+				if err != nil {
+					continue
+				}
+
+				isCoinbaseVal := len(tx.Vins) <= 0 || tx.Vins[0].Address == ""
+				isCoinbase = &isCoinbaseVal
+			}
+
+			p.confirmedUtxos.Add(utxo.TXID, *isCoinbase)
+			// If is coinbase then mark as immatured
+			if *isCoinbase {
+				continue
+			}
 		}
 		minUTXOsSum = minUTXOsSum.Add(utxo.Satoshis)
 		utxos = append(utxos, toEthResponseType(utxo))

@@ -139,7 +139,7 @@ func DefaultProxies(qtumRPCClient *qtum.Qtum, agent *notifier.Agent, cacher *Blo
 		&ETHSubscribe{Qtum: qtumRPCClient, Agent: agent},
 		&ETHUnsubscribe{Qtum: qtumRPCClient, Agent: agent},
 
-		&ProxyQTUMGetUTXOs{Qtum: qtumRPCClient},
+		(&ProxyQTUMGetUTXOs{Qtum: qtumRPCClient}).WithCache(),
 		&ProxySendToFVM{Qtum: qtumRPCClient},
 		&ProxyQTUMGetRawTransaction{Qtum: qtumRPCClient}, // NOTE: experimental feature
 

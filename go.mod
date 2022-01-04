@@ -15,6 +15,7 @@ require (
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.2.8 // indirect
