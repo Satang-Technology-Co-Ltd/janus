@@ -1,6 +1,7 @@
 package transformer
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"time"
@@ -11,23 +12,97 @@ import (
 	"github.com/qtumproject/janus/pkg/qtum"
 	"github.com/qtumproject/janus/pkg/utils"
 	"github.com/shopspring/decimal"
+)
 
-	lru "github.com/hashicorp/golang-lru"
+const (
+	CoinbaseMaturityIn = 100
+	CoinbaseCacheSize  = 200
 )
 
 type ProxyQTUMGetUTXOs struct {
 	*qtum.Qtum
-	confirmedUtxos *lru.Cache
+	syncedBlocks    *big.Int
+	cachedCoinbases []string
 }
 
 var _ ETHProxy = (*ProxyQTUMGetUTXOs)(nil)
+
+func (p *ProxyQTUMGetUTXOs) queryCoinbases(from *big.Int, to *big.Int) ([]string, error) {
+	if from.Cmp(big.NewInt(0)) <= 0 {
+		from = big.NewInt(1)
+	}
+
+	coinbases := []string{}
+	for from.Cmp(to) <= 0 {
+
+		blockHash, err := p.Qtum.GetBlockHash(from)
+		if err != nil {
+			return nil, err
+		}
+
+		block, err := p.Qtum.GetBlock(string(blockHash))
+		if err != nil {
+			return nil, err
+		}
+
+		coinbases = append(coinbases, block.Txs[0])
+		from = from.Add(from, big.NewInt(1))
+	}
+
+	return coinbases, nil
+}
 
 func (p *ProxyQTUMGetUTXOs) Method() string {
 	return "qtum_getUTXOs"
 }
 
 func (p *ProxyQTUMGetUTXOs) WithCache() *ProxyQTUMGetUTXOs {
-	p.confirmedUtxos, _ = lru.New(1000)
+	clean := func(err error) {
+		if err != nil {
+			fmt.Println(err)
+		}
+		p.syncedBlocks = big.NewInt(0)
+		p.cachedCoinbases = []string{}
+	}
+	clean(nil)
+
+	go func() {
+		tick := time.NewTicker(1 * time.Second)
+		for {
+			<-tick.C
+
+			// Get last block
+			current, err := p.Qtum.GetBlockCount()
+			if err != nil {
+				clean(err)
+				continue
+			}
+
+			// Calculate first block
+			from := p.syncedBlocks
+			from = from.Add(from, big.NewInt(1))
+			prev := big.NewInt(0).Sub(current.Int, big.NewInt(CoinbaseCacheSize))
+			if from.Cmp(prev) < 0 {
+				from = prev
+			}
+
+			// Query
+			coinbases, err := p.queryCoinbases(from, current.Int)
+			if err != nil {
+				clean(err)
+				continue
+			}
+
+			// Store and remove matured
+			p.cachedCoinbases = append(p.cachedCoinbases, coinbases...)
+
+			if len(p.cachedCoinbases) > CoinbaseCacheSize {
+				p.cachedCoinbases = p.cachedCoinbases[len(p.cachedCoinbases)-CoinbaseCacheSize:]
+			}
+			p.syncedBlocks = current.Int
+		}
+	}()
+
 	return p
 }
 
@@ -73,17 +148,21 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 	rand.Seed(int64(time.Now().Nanosecond()))
 	rand.Shuffle(len(*resp), func(i, j int) { (*resp)[i], (*resp)[j] = (*resp)[j], (*resp)[i] })
 	for _, utxo := range *resp {
-		confirmations := utils.GetConfirmations(blockCount.Int, utxo.Height)
-		if confirmations.Cmp(big.NewInt(100)) < 0 {
+		if big.NewInt(0).Sub(blockCount.Int, utxo.Height).Cmp(big.NewInt(CoinbaseMaturityIn)) < 0 {
 
 			var isCoinbase *bool
-
-			// Search in cache
-			if p.confirmedUtxos != nil {
-				if val, ok := p.confirmedUtxos.Get(utxo.TXID); ok {
-					if valBool, assertOk := val.(bool); assertOk {
-						isCoinbase = &valBool
+			// Find from cache
+			if p.syncedBlocks != nil && utxo.Height.Cmp(p.syncedBlocks) < 0 {
+				for _, u := range p.cachedCoinbases {
+					if u == utxo.TXID {
+						value := true
+						isCoinbase = &value
+						break
 					}
+				}
+				if isCoinbase == nil {
+					value := false
+					isCoinbase = &value
 				}
 			}
 
@@ -98,7 +177,6 @@ func (p *ProxyQTUMGetUTXOs) request(params eth.GetUTXOsRequest) (*eth.GetUTXOsRe
 				isCoinbase = &isCoinbaseVal
 			}
 
-			p.confirmedUtxos.Add(utxo.TXID, *isCoinbase)
 			// If is coinbase then mark as immatured
 			if *isCoinbase {
 				continue
